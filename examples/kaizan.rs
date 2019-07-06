@@ -29,17 +29,27 @@ fn op_normal(mut w: &mut io::Write, key: u8) -> io::Result<Mode> {
         b'd' => w.el(csi::ElClear::FromCurToEol)?,
         b'D' => w.el(csi::ElClear::EntireLine)?,
 
-        b'i' => next_mode = Mode::Insert,
+        b'i' => {
+            w.decscusr(csi::DecscusrStyle::SteadyBar)?;
+            next_mode = Mode::Insert;
+        },
         b'q' => next_mode = Mode::Quit,
+
+        b'v' => w.sgr(csi::SgrCode::Inverse)?,
+        b'V' => w.sgr(csi::SgrCode::Normal)?,
+
         _ => {}
     }
     Ok(next_mode)
 }
 
-fn op_insert(w: &mut io::Write, key: u8) -> io::Result<Mode> {
+fn op_insert(mut w: &mut io::Write, key: u8) -> io::Result<Mode> {
     let mut next_mode = Mode::Insert;
     match key {
-        27u8 => next_mode = Mode::Normal,
+        27u8 => {  // ESC
+            w.decscusr(csi::DecscusrStyle::SteadyBlock)?;
+            next_mode = Mode::Normal;
+        },
         _ => write!(w, "{}", key as char)?,
     }
     Ok(next_mode)
@@ -72,6 +82,7 @@ fn main() -> io::Result<()> {
         w.flush()?;
 
         if mode == Mode::Quit {
+            w.decscusr(csi::DecscusrStyle::SteadyBlock)?;
             w.cha(1)?;
             w.ed(csi::EdClear::FromCurToEos)?;
             break;
