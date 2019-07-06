@@ -7,7 +7,7 @@ pub fn echo_off() -> termios::Termios {
     let oldstat = termios::Termios::from_fd(0).unwrap();
     let mut termstat = oldstat;
     termstat.c_lflag &= !(termios::ICANON | termios::ECHO);
-    termios::tcsetattr(0, termios::TCSANOW, &mut termstat).unwrap();
+    termios::tcsetattr(0, termios::TCSANOW, &termstat).unwrap();
     oldstat
 }
 

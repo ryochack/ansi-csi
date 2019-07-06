@@ -143,12 +143,12 @@ pub trait Csi {
     /// If n is 1, clear from cursor to beginning of the screen.
     /// If n {\displaystyle n} n is 2, clear entire screen (and moves cursor to upper left on DOS ANSI.SYS).
     /// If n {\displaystyle n} n is 3, clear entire screen and delete all lines saved in the scrollback buffer (this feature was added for xterm and is supported by other terminal applications).
-    fn ed(&mut self, n: usize) -> io::Result<()>;
+    fn ed(&mut self, n: EdClear) -> io::Result<()>;
     /// EL: erase in line
     /// If n is 0 (or missing), clear from cursor to the end of the line.
     /// If n is 1, clear from cursor to beginning of the line.
     /// If n is 2, clear entire line. Cursor position does not change.
-    fn el(&mut self, n: usize) -> io::Result<()>;
+    fn el(&mut self, n: ElClear) -> io::Result<()>;
     /// SU: scroll up
     fn su(&mut self, n: usize) -> io::Result<()>;
     /// SD: scroll down
@@ -176,7 +176,7 @@ pub trait Csi {
     /// 4: steady underline
     /// 5: blinking bar
     /// 6: steady bar
-    fn decscusr(&mut self, n: usize) -> io::Result<()>;
+    fn decscusr(&mut self, s: DecscusrStyle) -> io::Result<()>;
 }
 
 // avoid zero
@@ -222,13 +222,15 @@ impl<W: io::Write> Csi for W {
         self.write_fmt(format_args!(csi!("{};{}H"), _nz(row), _nz(col)))?;
         Ok(())
     }
-    fn ed(&mut self, n: usize) -> io::Result<()> {
+    fn ed(&mut self, n: EdClear) -> io::Result<()> {
+        let n = n as usize;
         if n <= 3 {
             self.write_fmt(format_args!(csi!("{}J"), n))?;
         }
         Ok(())
     }
-    fn el(&mut self, n: usize) -> io::Result<()> {
+    fn el(&mut self, n: ElClear) -> io::Result<()> {
+        let n = n as usize;
         if n <= 2 {
             self.write_fmt(format_args!(csi!("{}K"), n))?;
         }
@@ -301,7 +303,8 @@ impl<W: io::Write> Csi for W {
         self.write_fmt(format_args!(csi!("{}l"), n))?;
         Ok(())
     }
-    fn decscusr(&mut self, n: usize) -> io::Result<()> {
+    fn decscusr(&mut self, s: DecscusrStyle) -> io::Result<()> {
+        let n = s as usize;
         if n <= 6 {
             self.write_fmt(format_args!(csi!("{} q"), n))?;
         }
@@ -574,25 +577,25 @@ mod tests {
         let w = io::stdout();
         let mut w = w.lock();
         setup(&mut w);
-        w.decscusr(1).unwrap();
+        w.decscusr(DecscusrStyle::BlinkingBlock).unwrap();
         w.flush().unwrap();
         thread::sleep(time::Duration::from_millis(100));
-        w.decscusr(2).unwrap();
+        w.decscusr(DecscusrStyle::SteadyBlock).unwrap();
         w.flush().unwrap();
         thread::sleep(time::Duration::from_millis(100));
-        w.decscusr(3).unwrap();
+        w.decscusr(DecscusrStyle::BlinkingUnderline).unwrap();
         w.flush().unwrap();
         thread::sleep(time::Duration::from_millis(100));
-        w.decscusr(4).unwrap();
+        w.decscusr(DecscusrStyle::SteadyUnderline).unwrap();
         w.flush().unwrap();
         thread::sleep(time::Duration::from_millis(100));
-        w.decscusr(5).unwrap();
+        w.decscusr(DecscusrStyle::BlinkingBar).unwrap();
         w.flush().unwrap();
         thread::sleep(time::Duration::from_millis(100));
-        w.decscusr(6).unwrap();
+        w.decscusr(DecscusrStyle::SteadyBar).unwrap();
         w.flush().unwrap();
         thread::sleep(time::Duration::from_millis(100));
-        w.decscusr(2).unwrap();
+        w.decscusr(DecscusrStyle::SteadyBlock).unwrap();
         w.flush().unwrap();
         teardown(&mut w);
     }
