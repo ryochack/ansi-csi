@@ -1,6 +1,5 @@
 use std::io::{self, Read, Write};
-use ansi_csi;
-use ansi_csi::csi::{self, Csi};
+use ansi_csi::{self, csi};
 
 #[derive(PartialEq, Clone, Copy)]
 enum Mode {
@@ -9,45 +8,45 @@ enum Mode {
     Quit,
 }
 
-fn op_normal(mut w: &mut io::Write, key: u8) -> io::Result<Mode> {
+fn op_normal<W: io::Write>(mut w: &mut W, key: u8) -> io::Result<Mode> {
     let mut next_mode = Mode::Normal;
     match key {
-        b'j' => w.cud(1)?,
-        b'k' => w.cuu(1)?,
-        b'l' => w.cuf(1)?,
-        b'h' => w.cub(1)?,
-        b'a' => w.cha(1)?,
-        b'e' => w.cha(1000)?,
-        b'n' => w.cnl(1)?,
-        b'p' => w.cpl(1)?,
+        b'j' => csi::cud(&mut w, 1)?,
+        b'k' => csi::cuu(&mut w, 1)?,
+        b'l' => csi::cuf(&mut w, 1)?,
+        b'h' => csi::cub(&mut w, 1)?,
+        b'a' => csi::cha(&mut w, 1)?,
+        b'e' => csi::cha(&mut w, 1000)?,
+        b'n' => csi::cnl(&mut w, 1)?,
+        b'p' => csi::cpl(&mut w, 1)?,
 
-        b'K' => w.sd(1)?,
-        b'J' => w.su(1)?,
+        b'K' => csi::sd(&mut w, 1)?,
+        b'J' => csi::su(&mut w, 1)?,
 
-        b'c' => w.ed(csi::EdClear::FromCurToEos)?,
-        b'C' => w.ed(csi::EdClear::EntireScreen)?,
-        b'd' => w.el(csi::ElClear::FromCurToEol)?,
-        b'D' => w.el(csi::ElClear::EntireLine)?,
+        b'c' => csi::ed(&mut w, csi::EdClear::FromCurToEos)?,
+        b'C' => csi::ed(&mut w, csi::EdClear::EntireScreen)?,
+        b'd' => csi::el(&mut w, csi::ElClear::FromCurToEol)?,
+        b'D' => csi::el(&mut w, csi::ElClear::EntireLine)?,
 
         b'i' => {
-            w.decscusr(csi::DecscusrStyle::SteadyBar)?;
+            csi::decscusr(&mut w, csi::DecscusrStyle::SteadyBar)?;
             next_mode = Mode::Insert;
         },
         b'q' => next_mode = Mode::Quit,
 
-        b'v' => w.sgr(csi::SgrCode::Inverse)?,
-        b'V' => w.sgr(csi::SgrCode::Normal)?,
+        b'v' => csi::sgr(&mut w, csi::SgrCode::Inverse)?,
+        b'V' => csi::sgr(&mut w, csi::SgrCode::Normal)?,
 
         _ => {}
     }
     Ok(next_mode)
 }
 
-fn op_insert(mut w: &mut io::Write, key: u8) -> io::Result<Mode> {
+fn op_insert<W: io::Write>(mut w: &mut W, key: u8) -> io::Result<Mode> {
     let mut next_mode = Mode::Insert;
     match key {
         27u8 => {  // ESC
-            w.decscusr(csi::DecscusrStyle::SteadyBlock)?;
+            csi::decscusr(&mut w, csi::DecscusrStyle::SteadyBlock)?;
             next_mode = Mode::Normal;
         },
         _ => write!(w, "{}", key as char)?,
@@ -82,9 +81,9 @@ fn main() -> io::Result<()> {
         w.flush()?;
 
         if mode == Mode::Quit {
-            w.decscusr(csi::DecscusrStyle::SteadyBlock)?;
-            w.cha(1)?;
-            w.ed(csi::EdClear::FromCurToEos)?;
+            csi::decscusr(&mut w, csi::DecscusrStyle::SteadyBlock)?;
+            csi::cha(&mut w, 1)?;
+            csi::ed(&mut w, csi::EdClear::FromCurToEos)?;
             break;
         }
     }
